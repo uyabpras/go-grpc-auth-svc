@@ -3,6 +3,7 @@ package services
 import (
 	"context"
 	"net/http"
+	"regexp"
 
 	"github.com/uyabpras/go-grpc-auth-svc/pkg/db"
 	"github.com/uyabpras/go-grpc-auth-svc/pkg/models"
@@ -17,6 +18,15 @@ type Server struct {
 
 func (s *Server) Register(ctx context.Context, req *pb.RegisterRequest) (*pb.RegisterResponse, error) {
 	var user models.User
+
+	check_acc := utils.RegexforACC(req.Email, req.Password)
+
+	if !check_acc {
+		return &pb.RegisterResponse{
+			Status: http.StatusConflict,
+			Error:  "E-Mail or Password are not allowed",
+		}, nil
+	}
 
 	if result := s.H.DB.Where(&models.User{Email: req.Email}).First(&user); result.Error == nil {
 		return &pb.RegisterResponse{
@@ -37,6 +47,15 @@ func (s *Server) Register(ctx context.Context, req *pb.RegisterRequest) (*pb.Reg
 
 func (s *Server) Login(ctx context.Context, req *pb.LoginRequest) (*pb.LoginResponse, error) {
 	var user models.User
+
+	emailRegex := regexp.MustCompile(`^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$`)
+
+	if !emailRegex.MatchString(req.Email) {
+		return &pb.LoginResponse{
+			Status: http.StatusConflict,
+			Error:  "Invalid email address",
+		}, nil
+	}
 
 	if result := s.H.DB.Where(&models.User{Email: req.Email}).First(&user); result.Error != nil {
 		return &pb.LoginResponse{
